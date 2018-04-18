@@ -8,23 +8,25 @@
 #endif
 
 
-#define Width 8
+#define Width  4
 #define Height 4
 
-// Which pin on the Arduino is connected to the NeoPixels?
-// On a Trinket or Gemma we suggest changing this to 1
-#define PIN            6
+#define PIN    4
+#define PINB   LED_BUILTIN
 
 // How many NeoPixels are attached to the Arduino?
 #define NUMPIXELS      (Width * Height)
 
-#define DELAY           250   // Delay between cycles (ms)
-#define MAXGENERATIONS  100   // Maximum number of cycles allowed before restarting
-#define MAXBLANK 10           // Maximum number of blank cycles before restarting
-#define MAXSTATIC 10          // Maximum number of cycles that are exactly the same before restarting
+uint16_t DELAY          = 500;   // Delay between cycles (ms)
+uint16_t MAXGENERATIONS = 50;   // Maximum number of cycles allowed before restarting
+uint16_t MAXBLANK       = 5;     // Maximum number of blank cycles before restarting
+uint16_t MAXSTATIC      = 5;     // Maximum number of cycles that are exactly the same before restarting
 
-#define ADJBRIGHT             // Adjust Brightness based on neighbor count
-#define ADJCOLOR              // Adjust Color based on neighbor count
+bool ADJBRIGHT          = true;    // Adjust Brightness based on neighbor count
+bool ADJCOLOR           = true;   // Adjust Color based on neighbor count
+uint16_t colorAdjust    = 50;     // if ADJCOLOR degrees of color rotation per neighbor
+uint16_t maxBrightness  = 50;     // max brightness
+uint16_t brightAdjust   = 10;     // if ADJCOLOR, asjust by this amount log
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
@@ -47,6 +49,7 @@ byte last[16][16];
 
 //**********************************************************************************************************************************************************
 void setup() {
+  Serial.begin(115200);
   // This is for Trinket 5V 16MHz, you can remove these three lines if you are not using a Trinket
 #if defined (__AVR_ATtiny85__)
   if (F_CPU == 16000000) clock_prescale_set(clock_div_1);
@@ -56,7 +59,7 @@ void setup() {
   pixels.begin(); // This initializes the NeoPixel library.
   
   // initialize digital pin 13 as an output.
-  pinMode(13, OUTPUT);
+  pinMode(PINB, OUTPUT);
   
   randomize(t1); 
 }
@@ -80,7 +83,7 @@ void loop()
   }
 
   onoff = !onoff;
-  digitalWrite(13, onoff?HIGH:LOW);
+  digitalWrite(PINB, onoff?HIGH:LOW);
   compute_previous_generation(t1,t2);
   compute_neighbouring_cells(t1,t2);
   compute_next_generation(t1,t2);
@@ -116,22 +119,23 @@ void display(byte t1[16][16])
       {
         newBuffer[j*Width+i] = 1;
         byte r, g, b;
-        unsigned int bright = 150;
+        unsigned int bright = maxBrightness;
         unsigned int xhue = hue;
-#ifdef ADJBRIGHT
-        bright = 10 + 1 << nCount; // 2^nCount makes the scaling logrithmic, so the eye can see the differences
-        if (bright > 255) bright = 255; 
-#endif
-#ifdef ADJCOLOR
-        xhue += nCount * 40; // 40 degrees of color rotation per neighbor
-        if (xhue >= 360) xhue -= 360;
-#endif
+        if(ADJBRIGHT){
+          bright = brightAdjust + 1 << nCount; // 2^nCount makes the scaling logrithmic, so the eye can see the differences
+          if (bright > 255) bright = 255;
+          // if (bright < 5) bright = 5; // @todo clamp min brightness in hsvrgb
+        }
+        if(ADJCOLOR){
+          xhue += nCount * colorAdjust; // degrees of color rotation per neighbor
+          if (xhue >= 360) xhue -= 360;
+        }
         hsv2rgb(xhue,255,255,&r,&g,&b,bright);
         c = pixels.Color(r,g,b);
       }
       else
       {
-        c = pixels.Color(0,0,0);
+        c = pixels.Color(0,0,0); // off color
         newBuffer[j*Width+i] = 0;
         offCount++;
       }
@@ -176,6 +180,7 @@ void compute_next_generation(byte t1[16][16],byte t2[16][16])
   }
   
   noOfGeneration++;
+  Serial.print("Gen: ");
   Serial.println(noOfGeneration);
 }
 
@@ -341,6 +346,5 @@ void hsv2rgb(unsigned int hue, unsigned int sat, unsigned int val, \
   *g = *g * maxBrightness/255;
   *b = *b * maxBrightness/255;
 }
-
 
 
