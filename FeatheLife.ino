@@ -13,11 +13,13 @@
 
 #define PIN    4
 #define PINB   LED_BUILTIN
+#define ZIGZAG // for zigzag matrix TL->TR->L
 
 // How many NeoPixels are attached to the Arduino?
 #define NUMPIXELS      (Width * Height)
 
-uint16_t DELAY          = 500;   // Delay between cycles (ms)
+// options
+uint16_t DELAY          = 300;   // Delay between cycles (ms)
 uint16_t MAXGENERATIONS = 50;   // Maximum number of cycles allowed before restarting
 uint16_t MAXBLANK       = 5;     // Maximum number of blank cycles before restarting
 uint16_t MAXSTATIC      = 5;     // Maximum number of cycles that are exactly the same before restarting
@@ -33,12 +35,13 @@ Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ80
 void hsv2rgb(unsigned int hue, unsigned int sat, unsigned int val, \
 unsigned char * r, unsigned char * g, unsigned char * b, unsigned char maxBrightness );
 
-int idx=0;
+// vars
+int idx            = 0;
 int noOfGeneration = 0;
-int iCount = 0;
+int iCount         = 0;
 unsigned int hue;
-int allOffCount = 0;  // tracking how many cycles all pixels are off
-int sameCount = 0;   // tracking how many cycles all pixels the same as the prior cycle
+int allOffCount    = 0;  // tracking how many cycles all pixels are off
+int sameCount      = 0;   // tracking how many cycles all pixels the same as the prior cycle
 byte sameBuffer[NUMPIXELS];  
 
 byte t1[16][16];                      
@@ -62,6 +65,21 @@ void setup() {
   pinMode(PINB, OUTPUT);
   
   randomize(t1); 
+  // @todo add init patterns
+  // 
+  //Gliderpattern
+  // board[1][0] = 1;
+  // board[2][1] = 1;
+  // board[0][2] = 1;
+  // board[1][2] = 1;
+  // board[2][2] = 1;
+
+  // R-pentomino
+  //  board[2][1] = 1;
+  //  board[3][1] = 1;
+  //  board[1][2] = 1;
+  //  board[2][2] = 1;
+  //  board[2][3] = 1;
 }
 
 
@@ -74,16 +92,20 @@ void loop()
   
   if (idx++ > MAXGENERATIONS || allOffCount > MAXBLANK || sameCount > MAXSTATIC)   //limit no. of generations for display
   {
-    allOffCount = 0;
-    sameCount = 0;
-    hue = random(360);
+    allOffCount    = 0;
+    sameCount      = 0;
+    hue            = random(360); // @todo custom start hue, maybe replace hue and conversion with colorwheel ?
     randomize(t1);   
-    noOfGeneration = 0;     
+    noOfGeneration = 0;
     idx=0;
   }
 
-  onoff = !onoff;
-  digitalWrite(PINB, onoff?HIGH:LOW);
+  #ifdef PINB
+    // generation indicator
+    onoff = !onoff;
+    digitalWrite(PINB, onoff?HIGH:LOW);
+  #endif
+
   compute_previous_generation(t1,t2);
   compute_neighbouring_cells(t1,t2);
   compute_next_generation(t1,t2);
@@ -109,15 +131,21 @@ void display(byte t1[16][16])
 
   int offCount = 0;
   byte newBuffer[NUMPIXELS];
-  uint32_t c;  
-  for(i=0; i<(Width); i++)
+  uint32_t c;
+
+  // rows
+  for(i=0; i<(Height); i++)
   {
-    for(j=0; j<Height; j++)
+    // columns
+    for(j=0; j<Width; j++)
     {  
+      uint32_t pixel = i*Width+j;
+      // uint32_t pixel = j*height+i;
       byte nCount = countNeighbors(t1,i,j);
+
       if (t1[i][j])
       {
-        newBuffer[j*Width+i] = 1;
+        newBuffer[pixel] = 1;
         byte r, g, b;
         unsigned int bright = maxBrightness;
         unsigned int xhue = hue;
@@ -132,15 +160,24 @@ void display(byte t1[16][16])
         }
         hsv2rgb(xhue,255,255,&r,&g,&b,bright);
         c = pixels.Color(r,g,b);
+        Serial.print("1 ");
       }
       else
       {
         c = pixels.Color(0,0,0); // off color
-        newBuffer[j*Width+i] = 0;
+        newBuffer[pixel] = 0;
         offCount++;
+        Serial.print("0 ");
       }
-      pixels.setPixelColor(j*Width+i,c);
-    }     
+      #ifdef ZIGZAG
+        // if row is odd invert , for zigzag matrix TL->TR->L
+        if(i % 2 != 0){
+          pixel = ((i*Width)+Width-1) - j;
+        }  
+      #endif
+      pixels.setPixelColor(pixel,c);
+    }
+    Serial.println();
   }
   pixels.show();
   if (offCount == NUMPIXELS) allOffCount++;
@@ -154,9 +191,9 @@ void compute_previous_generation(byte t1[16][16],byte t2[16][16])
 {
   byte i,j;
 
-  for(i=0;i<Width;i++)
+  for(i=0;i<Height;i++)
   {
-    for(j=0;j<Height;j++)
+    for(j=0;j<Width;j++)
     {
       t2[i][j]=t1[i][j];
       last[i][j]=t1[i][j];
@@ -171,9 +208,9 @@ void compute_next_generation(byte t1[16][16],byte t2[16][16])
 {
   byte i,j;
 
-  for(i=0;i<Width;i++)
+  for(i=0;i<Height;i++)
   {
-    for(j=0;j<Height;j++)
+    for(j=0;j<Width;j++)
     {
       t1[i][j]=t2[i][j];
     }
@@ -191,9 +228,9 @@ void compute_neighbouring_cells(byte t1[16][16],byte t2[16][16])   //To Re-visit
 {
   byte i,j,a;
 
-  for(i=0;i<Width;i++)
+  for(i=0;i<Height;i++)
   {
-    for(j=0;j<Height;j++)
+    for(j=0;j<Width;j++)
     {
       a = countNeighbors(t1,i,j);
       
@@ -205,6 +242,7 @@ void compute_neighbouring_cells(byte t1[16][16],byte t2[16][16])   //To Re-visit
 }
 
 
+// @todo optimize this ?
 byte countNeighbors(byte t1[16][16],byte i, byte j)
 {
   byte a;
@@ -261,9 +299,9 @@ void randomize(byte t1[16][16])
 {
   byte i,j;
   randomSeed(millis());
-  for(i=0;i<Width;i++)
+  for(i=0;i<Height;i++)
   {
-    for(j=0;j<Height;j++)
+    for(j=0;j<Width;j++)
     {
       t1[i][j]=random(2);
     }
