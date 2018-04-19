@@ -8,27 +8,28 @@
 #endif
 
 
-#define Width  4
-#define Height 4
+#define Width  8
+#define Height 8
 
 #define PIN    4
 #define PINB   LED_BUILTIN
-#define ZIGZAG // for zigzag matrix TL->TR->L
+// #define ZIGZAG // for zigzag matrix TL->TR->L
 
 // How many NeoPixels are attached to the Arduino?
 #define NUMPIXELS      (Width * Height)
 
 // options
-uint16_t DELAY          = 300;   // Delay between cycles (ms)
-uint16_t MAXGENERATIONS = 50;   // Maximum number of cycles allowed before restarting
+uint16_t DELAY          = 10000;   // Delay between cycles (ms)
+uint16_t MAXGENERATIONS = 50;    // Maximum number of cycles allowed before restarting
 uint16_t MAXBLANK       = 5;     // Maximum number of blank cycles before restarting
 uint16_t MAXSTATIC      = 5;     // Maximum number of cycles that are exactly the same before restarting
 
 bool ADJBRIGHT          = true;    // Adjust Brightness based on neighbor count
-bool ADJCOLOR           = true;   // Adjust Color based on neighbor count
+bool ADJCOLOR           = false;   // Adjust Color based on neighbor count
 uint16_t colorAdjust    = 50;     // if ADJCOLOR degrees of color rotation per neighbor
 uint16_t maxBrightness  = 50;     // max brightness
 uint16_t brightAdjust   = 10;     // if ADJCOLOR, asjust by this amount log
+bool printmap           = false;   // if true print matrix map to serial
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
@@ -36,23 +37,22 @@ void hsv2rgb(unsigned int hue, unsigned int sat, unsigned int val, \
 unsigned char * r, unsigned char * g, unsigned char * b, unsigned char maxBrightness );
 
 // vars
+unsigned int hue;
 int idx            = 0;
 int noOfGeneration = 0;
 int iCount         = 0;
-unsigned int hue;
-int allOffCount    = 0;  // tracking how many cycles all pixels are off
+int allOffCount    = 0;   // tracking how many cycles all pixels are off
 int sameCount      = 0;   // tracking how many cycles all pixels the same as the prior cycle
 byte sameBuffer[NUMPIXELS];  
 
-byte t1[16][16];                      
-byte t2[16][16];
-byte last[16][16];
-
-
+byte t1[16][16];   // main matrix                   
+byte t2[16][16];   // next matrix
+byte last[16][16]; // previous matrix
 
 //**********************************************************************************************************************************************************
 void setup() {
   Serial.begin(115200);
+  Serial.println();
   // This is for Trinket 5V 16MHz, you can remove these three lines if you are not using a Trinket
 #if defined (__AVR_ATtiny85__)
   if (F_CPU == 16000000) clock_prescale_set(clock_div_1);
@@ -63,26 +63,63 @@ void setup() {
   
   // initialize digital pin 13 as an output.
   pinMode(PINB, OUTPUT);
-  
-  randomize(t1); 
-  // @todo add init patterns
-  // 
-  //Gliderpattern
-  // board[1][0] = 1;
-  // board[2][1] = 1;
-  // board[0][2] = 1;
-  // board[1][2] = 1;
-  // board[2][2] = 1;
-
-  // R-pentomino
-  //  board[2][1] = 1;
-  //  board[3][1] = 1;
-  //  board[1][2] = 1;
-  //  board[2][2] = 1;
-  //  board[2][3] = 1;
+  // randomize(t1);
+  cleart(t1);
+  blinker(t1);
+  display(t1);
+  delay(DELAY);
 }
 
+void glider(){
+  // Gliderpattern
+  t1[1][0] = 1;
+  t1[2][1] = 1;
+  t1[0][2] = 1;
+  t1[1][2] = 1;
+  t1[2][2] = 1;
+}
 
+void pentomino(){
+  // R-pentomino
+  t1[2][1] = 1;
+  t1[3][1] = 1;
+  t1[1][2] = 1;
+  t1[2][2] = 1;
+  t1[2][3] = 1;
+}
+
+// oscillators
+void blinker(byte t1[16][16]){
+  // @todo bytes index!!!!
+  t1[1][0] = 1;
+  t1[1][1] = 1;
+  t1[1][2] = 1;
+}
+
+void toad(){
+
+}
+
+void beacon(){
+
+}
+
+// stills
+void block(){
+
+}
+void beehive(){
+
+}
+void loaf(){
+
+}
+void boat(){
+
+}
+void tub(){
+
+}
 
 //**********************************************************************************************************************************************************
 void loop()
@@ -113,7 +150,14 @@ void loop()
   delay(DELAY);
 }
 
-
+uint16_t getBrightness(uint16_t count){
+  uint16_t bright = brightAdjust << count; // 2^nCount makes the scaling logrithmic, so the eye can see the differences
+  if (bright > 255) bright = 255;
+  return bright;
+  // @todo nCount > 4 is > 255
+  // log gamma stepping 4-7 steps ?
+  // if (bright < 5) bright = 5; // @todo clamp min brightness in hsvrgb ?
+}
 
 //**********************************************************************************************************************************************************
 void clear_window()
@@ -121,7 +165,6 @@ void clear_window()
   pixels.clear();
   pixels.show();
 }
-
 
 
 //**********************************************************************************************************************************************************
@@ -143,6 +186,7 @@ void display(byte t1[16][16])
       // uint32_t pixel = j*height+i;
       byte nCount = countNeighbors(t1,i,j);
 
+      Serial.print(pixel);
       if (t1[i][j])
       {
         newBuffer[pixel] = 1;
@@ -150,9 +194,7 @@ void display(byte t1[16][16])
         unsigned int bright = maxBrightness;
         unsigned int xhue = hue;
         if(ADJBRIGHT){
-          bright = brightAdjust + 1 << nCount; // 2^nCount makes the scaling logrithmic, so the eye can see the differences
-          if (bright > 255) bright = 255;
-          // if (bright < 5) bright = 5; // @todo clamp min brightness in hsvrgb
+          bright = getBrightness(nCount);
         }
         if(ADJCOLOR){
           xhue += nCount * colorAdjust; // degrees of color rotation per neighbor
@@ -160,24 +202,26 @@ void display(byte t1[16][16])
         }
         hsv2rgb(xhue,255,255,&r,&g,&b,bright);
         c = pixels.Color(r,g,b);
-        Serial.print("1 ");
+        if(printmap) Serial.print("1 ");
+        else Serial.println(": 1");
       }
       else
       {
         c = pixels.Color(0,0,0); // off color
         newBuffer[pixel] = 0;
         offCount++;
-        Serial.print("0 ");
+        if(printmap) Serial.print("0 ");
+        else Serial.println(": 0");
       }
       #ifdef ZIGZAG
         // if row is odd invert , for zigzag matrix TL->TR->L
         if(i % 2 != 0){
           pixel = ((i*Width)+Width-1) - j;
-        }  
+        }
       #endif
-      pixels.setPixelColor(pixel,c);
+      if(!printmap) pixels.setPixelColor(pixel,c);
     }
-    Serial.println();
+    if(printmap) Serial.println();
   }
   pixels.show();
   if (offCount == NUMPIXELS) allOffCount++;
@@ -307,6 +351,19 @@ void randomize(byte t1[16][16])
     }
   }
 }
+
+void cleart(byte t1[16][16])
+{
+  byte i,j;
+  for(i=0;i<Height;i++)
+  {
+    for(j=0;j<Width;j++)
+    {
+      t1[i][j]=0;
+    }
+  }
+}
+
 
 /******************************************************************************
  * Tis function converts HSV values to RGB values, scaled from 0 to maxBrightness
