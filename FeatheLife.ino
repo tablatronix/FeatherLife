@@ -63,11 +63,12 @@ void setup() {
   
   // initialize digital pin 13 as an output.
   pinMode(PINB, OUTPUT);
-  // randomize(t1);
-  cleart(t1);
-  blinker(t1);
-  display(t1);
-  delay(DELAY);
+  randomize(t1);
+  
+  // cleart(t1);
+  // blinker(t1);
+  // display(t1);
+  // delay(DELAY);
 }
 
 void glider(){
