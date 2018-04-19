@@ -25,7 +25,7 @@ uint16_t MAXBLANK       = 5;     // Maximum number of blank cycles before restar
 uint16_t MAXSTATIC      = 5;     // Maximum number of cycles that are exactly the same before restarting
 
 bool ADJBRIGHT          = true;    // Adjust Brightness based on neighbor count
-bool ADJCOLOR           = false;   // Adjust Color based on neighbor count
+bool ADJCOLOR           = true;   // Adjust Color based on neighbor count
 uint16_t colorAdjust    = 50;     // if ADJCOLOR degrees of color rotation per neighbor
 uint16_t maxBrightness  = 50;     // max brightness
 uint16_t brightAdjust   = 10;     // if ADJCOLOR, asjust by this amount log
