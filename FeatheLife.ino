@@ -19,7 +19,7 @@
 #define NUMPIXELS      (Width * Height)
 
 // options
-uint16_t DELAY          = 10000;   // Delay between cycles (ms)
+uint16_t DELAY          = 500;   // Delay between cycles (ms)
 uint16_t MAXGENERATIONS = 50;    // Maximum number of cycles allowed before restarting
 uint16_t MAXBLANK       = 5;     // Maximum number of blank cycles before restarting
 uint16_t MAXSTATIC      = 5;     // Maximum number of cycles that are exactly the same before restarting
@@ -64,7 +64,7 @@ void setup() {
   // initialize digital pin 13 as an output.
   pinMode(PINB, OUTPUT);
   randomize(t1);
-  
+
   // cleart(t1);
   // blinker(t1);
   // display(t1);
