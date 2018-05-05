@@ -2,36 +2,45 @@
 // Code Example for jolliFactory's Bi-color 16X16 LED Matrix Conway's Game of Life example 1.0
 // and Adafruit NeoPixel Example 'simple'
 
-#include <Adafruit_NeoPixel.h>
 #ifdef __AVR__
   #include <avr/power.h>
 #endif
 
+#include <Adafruit_GFX.h>
+#include <Adafruit_NeoMatrix.h>
+#include <Adafruit_NeoPixel.h>
+#ifndef PSTR
+ #define PSTR // Make Arduino Due happy
+#endif
+
+#include <SPI.h>
 
 #define Width  8
 #define Height 8
 
 #define PIN    4
 #define PINB   LED_BUILTIN
-// #define ZIGZAG // for zigzag matrix TL->TR->L
 
 // How many NeoPixels are attached to the Arduino?
 #define NUMPIXELS      (Width * Height)
 
 // options
-uint16_t DELAY          = 500;   // Delay between cycles (ms)
-uint16_t MAXGENERATIONS = 50;    // Maximum number of cycles allowed before restarting
+uint16_t DELAY          = 80;   // Delay between cycles (ms)
+uint16_t MAXGENERATIONS = 100;    // Maximum number of cycles allowed before restarting
 uint16_t MAXBLANK       = 5;     // Maximum number of blank cycles before restarting
 uint16_t MAXSTATIC      = 5;     // Maximum number of cycles that are exactly the same before restarting
 
-bool ADJBRIGHT          = true;    // Adjust Brightness based on neighbor count
+bool ADJBRIGHT          = false;    // Adjust Brightness based on neighbor count
 bool ADJCOLOR           = true;   // Adjust Color based on neighbor count
-uint16_t colorAdjust    = 50;     // if ADJCOLOR degrees of color rotation per neighbor
-uint16_t maxBrightness  = 50;     // max brightness
-uint16_t brightAdjust   = 10;     // if ADJCOLOR, asjust by this amount log
+uint16_t colorAdjust    = 30;     // if ADJCOLOR degrees of color rotation per neighbor
+uint16_t maxBrightness  = 30;     // max brightness
+uint16_t brightAdjust   = 5;     // if ADJCOLOR, asjust by this amount log
 bool printmap           = false;   // if true print matrix map to serial
 
-Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoMatrix pixels = Adafruit_NeoMatrix(4, 4, 2, 2, PIN,
+  NEO_TILE_TOP   + NEO_TILE_LEFT   + NEO_TILE_ROWS   + NEO_TILE_PROGRESSIVE +
+  NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_ROWS + NEO_MATRIX_ZIGZAG,
+  NEO_GRB + NEO_KHZ800);
 
 void hsv2rgb(unsigned int hue, unsigned int sat, unsigned int val, \
 unsigned char * r, unsigned char * g, unsigned char * b, unsigned char maxBrightness );
@@ -52,7 +61,8 @@ byte last[16][16]; // previous matrix
 //**********************************************************************************************************************************************************
 void setup() {
   Serial.begin(115200);
-  Serial.println();
+  Serial.println("starting....");
+  delay(1000);
   // This is for Trinket 5V 16MHz, you can remove these three lines if you are not using a Trinket
 #if defined (__AVR_ATtiny85__)
   if (F_CPU == 16000000) clock_prescale_set(clock_div_1);
@@ -63,15 +73,18 @@ void setup() {
   
   // initialize digital pin 13 as an output.
   pinMode(PINB, OUTPUT);
-  randomize(t1);
+
+  // testmatrix();
+  // randomize(t1);
 
   // cleart(t1);
-  // blinker(t1);
-  // display(t1);
-  // delay(DELAY);
+  blinker(t1);
+  // glider(t1);
+  display(t1);
+  delay(DELAY);
 }
 
-void glider(){
+void glider(byte t1[16][16]){
   // Gliderpattern
   t1[1][0] = 1;
   t1[2][1] = 1;
@@ -80,7 +93,7 @@ void glider(){
   t1[2][2] = 1;
 }
 
-void pentomino(){
+void pentomino(byte t1[16][16]){
   // R-pentomino
   t1[2][1] = 1;
   t1[3][1] = 1;
@@ -97,29 +110,45 @@ void blinker(byte t1[16][16]){
   t1[1][2] = 1;
 }
 
-void toad(){
+void toad(byte t1[16][16]){
 
 }
 
-void beacon(){
+void beacon(byte t1[16][16]){
 
 }
 
 // stills
-void block(){
+void block(byte t1[16][16]){
 
 }
-void beehive(){
+void beehive(byte t1[16][16]){
 
 }
-void loaf(){
+void loaf(byte t1[16][16]){
 
 }
-void boat(){
+void boat(byte t1[16][16]){
 
 }
-void tub(){
+void tub(byte t1[16][16]){
 
+}
+
+void testmatrix(){
+  pixels.clear();
+  pixels.setPixelColor(0,pixels.Color(128,0,0));
+  pixels.show();
+  delay(500);
+  for(int i=0; i < 64; i++){
+    int x = i % Width;
+    int y = (i - x) / Width;
+    pixels.drawPixel( x,y, pixels.Color(128,0,128));
+    // pixels.setPixelColor(i,pixels.Color(128,0,128));
+    pixels.show();
+    delay(100);
+  }
+  delay(1000);
 }
 
 //**********************************************************************************************************************************************************
@@ -214,13 +243,7 @@ void display(byte t1[16][16])
         if(printmap) Serial.print("0 ");
         else Serial.println(": 0");
       }
-      #ifdef ZIGZAG
-        // if row is odd invert , for zigzag matrix TL->TR->L
-        if(i % 2 != 0){
-          pixel = ((i*Width)+Width-1) - j;
-        }
-      #endif
-      if(!printmap) pixels.setPixelColor(pixel,c);
+      pixels.drawPixel(j,i,c);
     }
     if(printmap) Serial.println();
   }
